@@ -4,6 +4,5 @@ cores/lib/
 *.vpk
 ._*
 .DS_Store
-assets/skins/
 *.log
 logs/

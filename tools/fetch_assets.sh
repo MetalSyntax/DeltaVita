@@ -1,5 +1,7 @@
 #!/bin/bash
-# Extrae las 7 skins Standard del IPA de Delta y las convierte a PNG para la Vita (assets/skins/).
+# SOLO uso personal: reemplaza las skins "Classic" (originales, ya en el repo) por las Standard de Delta
+# de tu propio IPA, convertidas a PNG. Esas skins no tienen licencia para redistribuirse: no publiques
+# un VPK compilado así. Para volver a las Classic: git checkout assets/skins
 # Uso: tools/fetch_assets.sh /ruta/Delta.ipa
 set -euo pipefail
 IPA="${1:?Uso: $0 /ruta/Delta.ipa}"

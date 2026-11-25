@@ -530,7 +530,7 @@ static int skin_choices(int sys, char names[][96], int max) {
 
 static void skin_label(int sys, char *out, size_t n) {
     if (!g_config.use_skin[sys]) { snprintf(out, n, "%s", T("Sin skin", "No skin")); return; }
-    if (!g_config.skin[sys][0]) { snprintf(out, n, "Standard (Delta)"); return; }
+    if (!g_config.skin[sys][0]) { snprintf(out, n, "Classic"); return; }
     char path[256];
     snprintf(path, sizeof(path), DATA_DIR "/skins/%s/%s", SYSTEMS[sys].id, g_config.skin[sys]);
     if (!skin_read_name(path, out, n)) snprintf(out, n, "%s", g_config.skin[sys]);

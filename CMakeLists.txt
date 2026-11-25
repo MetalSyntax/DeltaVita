@@ -8,7 +8,7 @@ include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
 
 set(VITA_APP_NAME "DeltaVita")
 set(VITA_TITLEID "DLTV00001")
-set(VITA_VERSION "01.00")
+set(VITA_VERSION "00.10")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wall -Wno-unused-function")
 
 # lógica común del lanzador y de los ejecutores de núcleo
@@ -48,7 +48,7 @@ foreach(lib ${CORE_LIBS})
   list(APPEND VPK_FILES FILE ${CMAKE_BINARY_DIR}/${core}.bin ${core}_libretro.self)
 endforeach()
 
-# skins convertidas a PNG (tools/fetch_assets.sh); no se versionan
+# skins Classic originales (tools/make_skins.py de DeltaDroid) o, en builds personales, las de Delta
 file(GLOB SKINS "${CMAKE_SOURCE_DIR}/assets/skins/*.deltaskin")
 list(FILTER SKINS EXCLUDE REGEX "/\\._")
 foreach(skin ${SKINS})
