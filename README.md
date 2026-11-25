@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="sce_sys/livearea/contents/bg.png" alt="DeltaVita PS Vita Banner" width="700"><br>
+  <img src="sce_sys/pic0.png" alt="DeltaVita PS Vita Banner" width="700"><br>
   DeltaVita · PS Vita Port
 </h1>
 
