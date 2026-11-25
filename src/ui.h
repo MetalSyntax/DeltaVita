@@ -40,6 +40,8 @@ void ui_vgradient(float x, float y, float w, float h, uint32_t top, uint32_t bot
 int ui_text(float x, float y, uint32_t c, float px, const char *s);
 int ui_text_w(float px, const char *s);
 void ui_text_center(float cx, float y, uint32_t c, float px, const char *s);
+/** Centrado y recortado con "…" si pasa de max_w. */
+void ui_text_center_fit(float cx, float y, uint32_t c, float px, float max_w, const char *s);
 /** Texto recortado con "…" para que quepa en max_w. */
 void ui_text_fit(float x, float y, uint32_t c, float px, float max_w, const char *s);
 /** Botón de PlayStation con su color original (✕ azul, ○ rojo, △ verde, □ rosa). */

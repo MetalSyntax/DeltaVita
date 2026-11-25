@@ -378,7 +378,7 @@ static void reload_skin(void) {
     snprintf(path, sizeof(path), DATA_DIR "/skins/%s/%s", SYSTEMS[g_sys].id, chosen);
     if (!chosen[0] || !file_exists(path)) snprintf(path, sizeof(path), "app0:skins/%s.deltaskin", SYSTEMS[g_sys].id);
     g_skin_on = skin_load(&g_skin, path, vw, vh);
-    if (!g_skin_on) toast(T("No se pudo cargar la skin: juego sin skin", "Could not load the skin: playing without it"));
+    if (!g_skin_on) toast(T("No se pudo cargar la skin", "Could not load the skin"));
 }
 
 /* ---------- PNG (capturas y miniaturas) ---------- */
@@ -602,16 +602,16 @@ static void close_menu(void) {
 
 static const char *menu_label(MenuItem m) {
     switch (m) {
-    case M_SAVE: return T("Guardar estado", "Save State");
-    case M_LOAD: return T("Cargar estado", "Load State");
+    case M_SAVE: return T("Guardar", "Save");
+    case M_LOAD: return T("Cargar", "Load");
     case M_FF: return T("Avance rápido", "Fast Forward");
     case M_RESET: return T("Reiniciar", "Reset");
     case M_SHOT: return T("Captura", "Screenshot");
-    case M_CHEATS: return T("Trucos", "Cheat Codes");
-    case M_HOLD: return T("Mantener botones", "Hold Buttons");
+    case M_CHEATS: return T("Trucos", "Cheats");
+    case M_HOLD: return T("Mantener", "Hold");
     case M_MUTE: return T("Silenciar", "Mute");
-    case M_SKIN: return T("Usar skin", "Use Skin");
-    case M_ROTATE: return T("Girar pantalla", "Rotate Screen");
+    case M_SKIN: return "Skin";
+    case M_ROTATE: return T("Girar", "Rotate");
     default: return T("Salir", "Quit");
     }
 }
@@ -632,14 +632,14 @@ static void menu_activate(MenuItem m) {
         mkdirs(DATA_DIR "/screenshots");
         clean_title(g_name, name, sizeof(name));
         snprintf(p, sizeof(p), DATA_DIR "/screenshots/%s_%lu.png", name, (unsigned long)time(NULL));
-        toast(save_png(p, 1) ? T("Captura guardada en ux0:data/DeltaVita/screenshots", "Screenshot saved")
+        toast(save_png(p, 1) ? T("Captura guardada", "Screenshot saved")
                              : T("No se pudo guardar la captura", "Could not save the screenshot"));
         break;
     }
     case M_HOLD:
         g_sustain = !g_sustain;
         g_held = 0;
-        if (g_sustain) toast(T("Pulsa los botones a mantener; otra vez para soltarlos", "Press buttons to hold; again to release"));
+        if (g_sustain) toast(T("Pulsa un botón para mantenerlo", "Press a button to hold it"));
         break;
     case M_MUTE: g_muted = !g_muted; break;
     case M_SKIN:
@@ -665,20 +665,20 @@ static void draw_tile(float x, float y, float w, float h, const char *label, boo
         ui_rect(x - 3, y, 3, h, COL_TEXT);
         ui_rect(x + w, y, 3, h, COL_TEXT);
     }
-    ui_text_center(x + w / 2, y + h / 2 - 10, COL_TEXT, 18, label);
+    ui_text_center_fit(x + w / 2, y + h / 2 - 9, COL_TEXT, 16, w - 16, label);
 }
 
 static void draw_menu(void) {
     int W = ui_w(), H = ui_h();
     ui_rect(0, 0, W, H, COL_SCRIM);
     int cols = W > H ? 4 : 2;
-    float pad = 14, tw = (W - 48 - pad * (cols - 1)) / cols, th = W > H ? 76 : 70;
+    float pad = 12, tw = (W - 48 - pad * (cols - 1)) / cols, th = W > H ? 60 : 58;
     int rows = (M_COUNT + cols - 1) / cols;
     float panel_h = 96 + rows * (th + pad) + 40;
     float py = H - panel_h;
     ui_round_rect(0, py, W, panel_h + 20, 24, RGBA8(0x1C, 0x1C, 0x21, 0xF6));
-    ui_text_fit(24, py + 18, COL_TEXT, 26, W - 48, g_title);
-    ui_text(24, py + 52, SYSTEMS[g_sys].color, 18, SYSTEMS[g_sys].label);
+    ui_text_fit(24, py + 20, COL_TEXT, 22, W - 48, g_title);
+    ui_text(24, py + 50, SYSTEMS[g_sys].color, 16, SYSTEMS[g_sys].label);
     for (int i = 0; i < M_COUNT; i++) {
         float x = 24 + (i % cols) * (tw + pad), y = py + 90 + (i / cols) * (th + pad);
         draw_tile(x, y, tw, th, menu_label(i), i == g_sel, menu_toggled(i));
@@ -689,7 +689,7 @@ static void draw_menu(void) {
 static void draw_slots(bool saving) {
     int W = ui_w(), H = ui_h();
     ui_rect(0, 0, W, H, RGBA8(0x12, 0x12, 0x16, 0xF8));
-    ui_text(24, 18, COL_TEXT, 26, saving ? menu_label(M_SAVE) : menu_label(M_LOAD));
+    ui_text(24, 18, COL_TEXT, 22, saving ? T("Guardar estado", "Save State") : T("Cargar estado", "Load State"));
     int n = saving ? SLOTS : SLOTS + 1, cols = W > H ? 3 : 2;
     float pad = 14, tw = (W - 48 - pad * (cols - 1)) / cols, th = W > H ? 132 : 150;
     int first_row = g_slot_sel / cols > 1 ? g_slot_sel / cols - 1 : 0; /* desplazamiento simple */
@@ -705,9 +705,9 @@ static void draw_slots(bool saving) {
         char label[32];
         if (i == SLOTS) snprintf(label, sizeof(label), "%s", T("Automático", "Auto Save"));
         else snprintf(label, sizeof(label), "%s %d", T("Ranura", "Slot"), i + 1);
-        ui_text(x + iw + 18, y + 14, COL_TEXT, 20, label);
-        ui_text(x + iw + 18, y + 42, COL_DIM, 16, g_has[i] ? g_dates[i] : T("Vacía", "Empty"));
-        if (g_locked[i]) ui_text(x + iw + 18, y + 66, SYSTEMS[g_sys].color, 16, T("Bloqueada", "Locked"));
+        ui_text_fit(x + iw + 14, y + 14, COL_TEXT, 17, tw - iw - 24, label);
+        ui_text_fit(x + iw + 14, y + 40, COL_DIM, 14, tw - iw - 24, g_has[i] ? g_dates[i] : T("Vacía", "Empty"));
+        if (g_locked[i]) ui_text_fit(x + iw + 14, y + 62, SYSTEMS[g_sys].color, 14, tw - iw - 24, T("Bloqueada", "Locked"));
     }
     ui_hints(RGBA8(0x1C, 0x1C, 0x21, 0xFF), GLYPH_CROSS, saving ? T("Guardar", "Save") : T("Cargar", "Load"),
              GLYPH_TRIANGLE, T("Bloquear", "Lock"), GLYPH_SQUARE, T("Borrar", "Delete"), GLYPH_CIRCLE, T("Atrás", "Back"), -1);
@@ -747,16 +747,16 @@ static void slots_input(uint32_t pressed, bool saving) {
 static void draw_cheats(void) {
     int W = ui_w(), H = ui_h();
     ui_rect(0, 0, W, H, RGBA8(0x12, 0x12, 0x16, 0xF8));
-    ui_text(24, 18, COL_TEXT, 26, menu_label(M_CHEATS));
-    ui_text_fit(24, 52, COL_DIM, 16, W - 48, T("Game Genie, Action Replay o GameShark, según la consola", "Game Genie, Action Replay or GameShark codes"));
-    if (!g_ncheats) ui_text(24, 100, COL_DIM, 20, T("Todavía no hay trucos. Pulsa □ para agregar uno.", "No cheats yet. Press □ to add one."));
+    ui_text(24, 18, COL_TEXT, 22, menu_label(M_CHEATS));
+    ui_text_fit(24, 48, COL_DIM, 14, W - 48, T("Game Genie, Action Replay o GameShark", "Game Genie, Action Replay or GameShark"));
+    if (!g_ncheats) ui_text_fit(24, 100, COL_DIM, 17, W - 48, T("Sin trucos. Pulsa □ para agregar.", "No cheats. Press □ to add one."));
     for (int i = 0; i < g_ncheats; i++) {
         float y = 90 + i * 52;
         if (y > H - 96) break;
         bool sel = i == g_cheat_sel;
         ui_round_rect(24, y, W - 48, 46, 10, sel ? ui_mix(COL_SURFACE, SYSTEMS[g_sys].color, 0.45f) : COL_SURFACE);
-        ui_text_fit(40, y + 6, COL_TEXT, 18, W - 200, g_cheats[i].name);
-        ui_text_fit(40, y + 26, COL_DIM, 14, W - 200, g_cheats[i].code);
+        ui_text_fit(40, y + 6, COL_TEXT, 16, W - 200, g_cheats[i].name);
+        ui_text_fit(40, y + 26, COL_DIM, 13, W - 200, g_cheats[i].code);
         ui_round_rect(W - 110, y + 12, 60, 22, 11, g_cheats[i].on ? SYSTEMS[g_sys].color : RGBA8(0x50, 0x50, 0x58, 0xFF));
         ui_text_center(W - 80, y + 14, COL_TEXT, 14, g_cheats[i].on ? T("SÍ", "ON") : "NO");
     }
@@ -821,7 +821,7 @@ static void fatal(const char *msg) {
         SceCtrlData pad;
         uint32_t pressed = read_input(&pad);
         ui_begin(false);
-        ui_text_center(SCREEN_W / 2, 230, COL_TEXT, 22, msg);
+        ui_text_center_fit(SCREEN_W / 2, 230, COL_TEXT, 20, SCREEN_W - 60, msg);
         ui_hints(COL_SURFACE, GLYPH_CIRCLE, T("Volver", "Back"), -1);
         ui_end();
         if (pressed & (SCE_CTRL_CIRCLE | SCE_CTRL_CROSS)) break;
@@ -912,9 +912,10 @@ int main(int argc, char *argv[]) {
         else if (g_screen == SCREEN_CHEATS) draw_cheats();
         if (g_toast_frames > 0) {
             g_toast_frames--;
-            float w = ui_text_w(18, g_toast) + 40;
-            ui_round_rect((ui_w() - w) / 2, 24, w, 40, 20, RGBA8(0x20, 0x20, 0x26, 0xE8));
-            ui_text_center(ui_w() / 2.0f, 34, COL_TEXT, 18, g_toast);
+            float w = ui_text_w(16, g_toast) + 36;
+            if (w > ui_w() - 24) w = ui_w() - 24;
+            ui_round_rect((ui_w() - w) / 2, 24, w, 36, 18, RGBA8(0x20, 0x20, 0x26, 0xE8));
+            ui_text_center_fit(ui_w() / 2.0f, 34, COL_TEXT, 16, w - 36, g_toast);
         }
         ui_end();
     }

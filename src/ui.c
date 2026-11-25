@@ -106,6 +106,12 @@ int ui_text_w(float px, const char *s) { return vita2d_pvf_text_width(g_font, px
 
 void ui_text_center(float cx, float y, uint32_t c, float px, const char *s) { ui_text(cx - ui_text_w(px, s) / 2.0f, y, c, px, s); }
 
+void ui_text_center_fit(float cx, float y, uint32_t c, float px, float max_w, const char *s) {
+    float w = ui_text_w(px, s);
+    if (w > max_w) w = max_w;
+    ui_text_fit(cx - w / 2, y, c, px, max_w, s);
+}
+
 void ui_text_fit(float x, float y, uint32_t c, float px, float max_w, const char *s) {
     if (ui_text_w(px, s) <= max_w) { ui_text(x, y, c, px, s); return; }
     char buf[256];
@@ -200,13 +206,13 @@ void ui_hints(uint32_t bg, ...) {
     }
     va_end(ap);
     for (int i = n - 1; i >= 0; i--) {
-        float tw = ui_text_w(18, items[i].s);
+        float tw = ui_text_w(16, items[i].s);
         x -= tw;
-        ui_text(x, y + 10, COL_TEXT, 18, items[i].s);
+        ui_text(x, y + 12, COL_TEXT, 16, items[i].s);
         float gw = items[i].g >= GLYPH_L && items[i].g <= GLYPH_SELECT ? (items[i].g >= GLYPH_START ? 44 : 22) : 22;
         x -= 8 + gw / 2;
-        ui_glyph((Glyph)items[i].g, x, y + h / 2, 11);
-        x -= gw / 2 + 22;
+        ui_glyph((Glyph)items[i].g, x, y + h / 2, 10);
+        x -= gw / 2 + 16;
     }
 }
 

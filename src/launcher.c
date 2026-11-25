@@ -202,8 +202,8 @@ static void download_covers(void) {
         ui_begin(g_config.portrait);
         char msg[160];
         snprintf(msg, sizeof(msg), T("Descargando carátulas %d / %d", "Downloading box art %d / %d"), ++done, todo);
-        ui_text_center(ui_w() / 2.0f, ui_h() / 2.0f - 30, COL_TEXT, 24, msg);
-        ui_text_center(ui_w() / 2.0f, ui_h() / 2.0f + 10, COL_DIM, 18, g_games[i].title);
+        ui_text_center_fit(ui_w() / 2.0f, ui_h() / 2.0f - 30, COL_TEXT, 20, ui_w() - 40, msg);
+        ui_text_center_fit(ui_w() / 2.0f, ui_h() / 2.0f + 10, COL_DIM, 16, ui_w() - 40, g_games[i].title);
         ui_round_rect(ui_w() * 0.2f, ui_h() / 2.0f + 50, ui_w() * 0.6f, 8, 4, COL_SURFACE);
         ui_round_rect(ui_w() * 0.2f, ui_h() / 2.0f + 50, ui_w() * 0.6f * done / (todo ? todo : 1), 8, 4, SYSTEMS[g_games[i].sys].color);
         ui_end();
@@ -212,8 +212,8 @@ static void download_covers(void) {
     curl_easy_cleanup(curl);
     free_covers();
     char msg[160];
-    snprintf(msg, sizeof(msg), T("Carátulas: %d nuevas, %d sin encontrar (usa nombres No-Intro)", "Box art: %d new, %d not found (use No-Intro names)"), got, missing);
-    toast(todo ? msg : T("Todas las carátulas ya estaban descargadas", "All box art was already downloaded"));
+    snprintf(msg, sizeof(msg), T("Carátulas: %d nuevas, %d no encontradas", "Box art: %d new, %d not found"), got, missing);
+    toast(todo ? msg : T("Carátulas al día", "Box art up to date"));
 }
 
 /* ---------- teclado del sistema ---------- */
@@ -265,7 +265,7 @@ static void launch(const Game *g) {
     char core[160];
     /* misma disposición que RetroArch: "app0:cores/x.bin" da SCE_APPMGR_ERROR_INVALID_SELF_PATH */
     snprintf(core, sizeof(core), "app0:/%s_libretro.self", SYSTEMS[g->sys].core);
-    if (!file_exists(core)) { toast(T("Este VPK no incluye el núcleo de esa consola", "This VPK does not include that console's core")); return; }
+    if (!file_exists(core)) { toast(T("Núcleo no incluido", "Core not included")); return; }
     FILE *f = fopen(DATA_DIR "/launch.txt", "w");
     if (!f) { toast(T("No se pudo escribir en ux0:data", "Could not write to ux0:data")); return; }
     fprintf(f, "%s\n%s\n", g->path, g->title);
@@ -292,7 +292,7 @@ static void draw_library(void) {
     int W = ui_w(), H = ui_h();
     uint32_t accent = g_npages ? SYSTEMS[g_pages[g_page]].color : SYSTEMS[SYS_GBA].color;
     ui_vgradient(0, 0, W, H, COL_BG, ui_mix(COL_BG, accent, 0.45f));
-    ui_text_center(W / 2.0f, 16, COL_TEXT, 26, g_npages ? SYSTEMS[g_pages[g_page]].label : "DeltaVita");
+    ui_text_center(W / 2.0f, 18, COL_TEXT, 22, g_npages ? SYSTEMS[g_pages[g_page]].label : "DeltaVita");
     if (g_npages > 1) {
         ui_glyph(GLYPH_L, 40, 32, 13);
         ui_glyph(GLYPH_R, W - 40, 32, 13);
@@ -301,9 +301,9 @@ static void draw_library(void) {
     }
     int first, n = page_games(&first);
     if (!n) {
-        ui_text_center(W / 2.0f, H / 2.0f - 60, COL_TEXT, 26, T("Sin juegos", "No games"));
-        ui_text_center(W / 2.0f, H / 2.0f - 20, COL_DIM, 18, T("Copia tus ROMs a ux0:data/DeltaVita/roms/", "Copy your ROMs to ux0:data/DeltaVita/roms/"));
-        ui_text_center(W / 2.0f, H / 2.0f + 10, COL_DIM, 16, ".nes .sfc .gb .gbc .gba .n64 .z64 .nds .md .bin");
+        ui_text_center(W / 2.0f, H / 2.0f - 60, COL_TEXT, 22, T("Sin juegos", "No games"));
+        ui_text_center_fit(W / 2.0f, H / 2.0f - 20, COL_DIM, 16, W - 40, T("Copia tus ROMs a ux0:data/DeltaVita/roms/", "Copy your ROMs to ux0:data/DeltaVita/roms/"));
+        ui_text_center_fit(W / 2.0f, H / 2.0f + 10, COL_DIM, 14, W - 40, ".nes .sfc .gb .gbc .gba .nds .md .bin");
         ui_hints(RGBA8(0, 0, 0, 0x60), GLYPH_START, T("Ajustes", "Settings"), -1);
         return;
     }
@@ -332,9 +332,9 @@ static void draw_library(void) {
             ui_texture_fit(g->cover, x, y, cw, cw, true, 0xFFFFFFFF);
         } else {
             ui_round_rect(x, y, cw, cw, 8, COL_SURFACE);
-            ui_text_center(x + cw / 2, y + cw / 2 - 12, accent, 22, SYSTEMS[g->sys].label);
+            ui_text_center(x + cw / 2, y + cw / 2 - 10, accent, 18, SYSTEMS[g->sys].label);
         }
-        ui_text_fit(x, y + cw + 8, k == sel ? COL_TEXT : accent, 16, cw, g->title);
+        ui_text_center_fit(x + cw / 2, y + cw + 8, k == sel ? COL_TEXT : accent, 14, cw, g->title);
     }
     ui_hints(RGBA8(0, 0, 0, 0x60), GLYPH_CROSS, T("Jugar", "Play"), GLYPH_TRIANGLE, T("Opciones", "Options"),
              GLYPH_START, T("Ajustes", "Settings"), -1);
@@ -390,13 +390,13 @@ static void draw_options(void) {
     ui_rect(0, 0, W, H, COL_SCRIM);
     float ph = 230;
     ui_round_rect(0, H - ph, W, ph + 20, 24, RGBA8(0x1C, 0x1C, 0x21, 0xF8));
-    ui_text_fit(24, H - ph + 16, COL_TEXT, 24, W - 48, g->title);
+    ui_text_fit(24, H - ph + 18, COL_TEXT, 20, W - 48, g->title);
     ui_text(24, H - ph + 46, SYSTEMS[g->sys].color, 16, SYSTEMS[g->sys].label);
     const char *labels[] = {T("Jugar", "Play"), T("Renombrar", "Rename"), T("Borrar juego", "Delete game")};
     for (int i = 0; i < 3; i++) {
         float y = H - ph + 76 + i * 36;
         if (i == g_opt_sel) ui_round_rect(16, y - 4, W - 32, 34, 8, ui_mix(COL_SURFACE, SYSTEMS[g->sys].color, 0.45f));
-        ui_text(32, y + 2, i == 2 ? RGBA8(0xFF, 0x8A, 0x80, 0xFF) : COL_TEXT, 20, labels[i]);
+        ui_text(32, y + 4, i == 2 ? RGBA8(0xFF, 0x8A, 0x80, 0xFF) : COL_TEXT, 17, labels[i]);
     }
     ui_hints(RGBA8(0x1C, 0x1C, 0x21, 0xFF), GLYPH_CROSS, T("Elegir", "Select"), GLYPH_CIRCLE, T("Atrás", "Back"), -1);
 }
@@ -425,8 +425,8 @@ static void draw_confirm(void) {
     ui_round_rect(W * 0.1f, H / 2.0f - 90, W * 0.8f, 150, 18, RGBA8(0x1C, 0x1C, 0x21, 0xFF));
     char m[200];
     snprintf(m, sizeof(m), T("¿Borrar «%s»?", "Delete \"%s\"?"), g ? g->title : "");
-    ui_text_center(W / 2.0f, H / 2.0f - 66, COL_TEXT, 22, m);
-    ui_text_center(W / 2.0f, H / 2.0f - 30, COL_DIM, 16, T("Se borra el archivo de la ROM; partidas y estados se conservan.", "The ROM file is deleted; saves and states are kept."));
+    ui_text_center_fit(W / 2.0f, H / 2.0f - 66, COL_TEXT, 19, W * 0.8f - 32, m);
+    ui_text_center_fit(W / 2.0f, H / 2.0f - 30, COL_DIM, 14, W * 0.8f - 32, T("Se borra la ROM; las partidas se conservan.", "The ROM is deleted; saves are kept."));
     ui_hints(RGBA8(0x1C, 0x1C, 0x21, 0xFF), GLYPH_CROSS, T("Borrar", "Delete"), GLYPH_CIRCLE, T("Cancelar", "Cancel"), -1);
 }
 
@@ -498,7 +498,7 @@ static void setting_change(int row, int dir) {
 static void draw_settings(void) {
     int W = ui_w(), H = ui_h();
     ui_rect(0, 0, W, H, COL_BG);
-    ui_text(24, 16, COL_TEXT, 26, T("Ajustes", "Settings"));
+    ui_text(24, 16, COL_TEXT, 22, T("Ajustes", "Settings"));
     float row_h = 36, y0 = 60;
     int visible = (int)((H - y0 - 50) / row_h);
     int top = g_set_sel - visible + 1 > 0 ? g_set_sel - visible + 1 : 0;
@@ -508,19 +508,22 @@ static void draw_settings(void) {
         if (r == S_ORIENT) { snprintf(label, sizeof(label), "%s", T("Orientación", "Orientation")); snprintf(value, sizeof(value), "%s", g_config.portrait ? T("Vertical", "Portrait") : T("Horizontal", "Landscape")); }
         else if (r < S_SKINS_START + SYS_COUNT) {
             int sys = r - S_SKINS_START;
-            snprintf(label, sizeof(label), "Skin %s%s", SYSTEMS[sys].label, SYSTEMS[sys].experimental ? T(" (experimental)", " (experimental)") : "");
+            snprintf(label, sizeof(label), "Skin %s%s", SYSTEMS[sys].label, SYSTEMS[sys].experimental ? " (beta)" : "");
             skin_label(sys, value, sizeof(value));
         }
-        else if (r == S_OPACITY) { snprintf(label, sizeof(label), "%s", T("Opacidad de la skin (horizontal)", "Skin opacity (landscape)")); snprintf(value, sizeof(value), "%d %%", g_config.opacity); }
+        else if (r == S_OPACITY) { snprintf(label, sizeof(label), "%s", T("Opacidad de la skin", "Skin opacity")); snprintf(value, sizeof(value), "%d %%", g_config.opacity); }
         else if (r == S_SCALE) { snprintf(label, sizeof(label), "%s", T("Escala sin skin", "Scaling without skin")); const char *m[] = {T("Ajustar", "Fit"), T("Entera", "Integer"), T("Estirar", "Stretch")}; snprintf(value, sizeof(value), "%s", m[g_config.scale_mode]); }
         else if (r == S_SMOOTH) { snprintf(label, sizeof(label), "%s", T("Filtro suave", "Smooth filter")); snprintf(value, sizeof(value), "%s", g_config.smooth ? T("Sí", "On") : "No"); }
-        else if (r == S_FF) { snprintf(label, sizeof(label), "%s", T("Velocidad del avance rápido", "Fast-forward speed")); snprintf(value, sizeof(value), "%dx", g_config.ff_speed); }
-        else { snprintf(label, sizeof(label), "%s", T("Descargar carátulas (Wi-Fi)", "Download box art (Wi-Fi)")); }
+        else if (r == S_FF) { snprintf(label, sizeof(label), "%s", T("Avance rápido", "Fast forward")); snprintf(value, sizeof(value), "%dx", g_config.ff_speed); }
+        else { snprintf(label, sizeof(label), "%s", T("Descargar carátulas", "Download box art")); }
         if (r == g_set_sel) ui_round_rect(12, y - 2, W - 24, row_h - 4, 8, COL_SURFACE);
-        ui_text(28, y + 6, COL_TEXT, 18, label);
+        /* etiqueta a la izquierda y valor a la derecha, cada uno con su mitad: nunca se pisan */
+        float half = (W - 68) / 2.0f;
+        ui_text_fit(28, y + 8, COL_TEXT, 16, half, label);
         if (value[0]) {
-            float vw = ui_text_w(18, value);
-            ui_text(W - 40 - vw, y + 6, r == g_set_sel ? SYSTEMS[g_config.last_system].color : COL_DIM, 18, value);
+            float vw = ui_text_w(16, value);
+            if (vw > half) vw = half;
+            ui_text_fit(W - 40 - vw, y + 8, r == g_set_sel ? SYSTEMS[g_config.last_system].color : COL_DIM, 16, half, value);
         }
     }
     ui_hints(RGBA8(0x1C, 0x1C, 0x21, 0xFF), GLYPH_DPAD, T("Cambiar", "Change"), GLYPH_CROSS, T("Elegir", "Select"),
@@ -577,10 +580,10 @@ int main(void) {
         else if (g_view == VIEW_CONFIRM_DELETE) draw_confirm();
         if (g_toast_frames > 0) {
             g_toast_frames--;
-            float w = ui_text_w(18, g_toast) + 40;
-            if (w > ui_w() - 20) w = ui_w() - 20;
-            ui_round_rect((ui_w() - w) / 2, 60, w, 40, 20, RGBA8(0x20, 0x20, 0x26, 0xF0));
-            ui_text_fit((ui_w() - w) / 2 + 20, 70, COL_TEXT, 18, w - 40, g_toast);
+            float w = ui_text_w(16, g_toast) + 36;
+            if (w > ui_w() - 24) w = ui_w() - 24;
+            ui_round_rect((ui_w() - w) / 2, 60, w, 36, 18, RGBA8(0x20, 0x20, 0x26, 0xF0));
+            ui_text_center_fit(ui_w() / 2.0f, 70, COL_TEXT, 16, w - 36, g_toast);
         }
         ui_end();
     }
