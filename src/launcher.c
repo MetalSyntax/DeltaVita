@@ -4,7 +4,6 @@
  *
  * Al elegir un juego escribe ux0:data/DeltaVita/launch.txt y hace LoadExec del núcleo (app0:/<núcleo>_libretro.self).
  */
-#include <curl/curl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +14,8 @@
 #include <psp2/io/dirent.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/kernel/processmgr.h>
+#include <psp2/libssl.h>
+#include <psp2/net/http.h>
 #include <psp2/net/net.h>
 #include <psp2/net/netctl.h>
 #include <psp2/sysmodule.h>
@@ -144,10 +145,37 @@ static const char *thumb_repo(const Game *g) {
     }
 }
 
-static size_t curl_write(void *p, size_t sz, size_t n, void *f) { return fwrite(p, sz, n, f); }
+/** Descarga url a dest con el cliente HTTP del sistema. curl de vitasdk no conecta (falla el connect()). */
+static bool http_download(int tpl, const char *url, const char *dest) {
+    char tmp[512];
+    snprintf(tmp, sizeof(tmp), "%s.part", dest);
+    int conn = sceHttpCreateConnectionWithURL(tpl, url, SCE_TRUE);
+    int req = conn >= 0 ? sceHttpCreateRequestWithURL(conn, SCE_HTTP_METHOD_GET, url, 0) : -1;
+    int rc = req >= 0 ? sceHttpSendRequest(req, NULL, 0) : req;
+    int status = 0;
+    if (rc >= 0) sceHttpGetStatusCode(req, &status);
+    bool ok = false;
+    if (status == 200) {
+        FILE *f = fopen(tmp, "wb");
+        if (f) {
+            static char buf[16 * 1024];
+            int n;
+            ok = true;
+            while ((n = sceHttpReadData(req, buf, sizeof(buf))) > 0) ok = ok && fwrite(buf, 1, n, f) == (size_t)n;
+            ok = ok && n == 0;
+            fclose(f);
+        }
+    }
+    logf_("carátula %s -> 0x%08X http %d %s\n", url, rc, status, ok ? "ok" : "");
+    if (req >= 0) sceHttpDeleteRequest(req);
+    if (conn >= 0) sceHttpDeleteConnection(conn);
+    if (!ok) { sceIoRemove(tmp); return false; }
+    sceIoRemove(dest);
+    return sceIoRename(tmp, dest) >= 0;
+}
 
-static bool download_cover(CURL *curl, const Game *g) {
-    char stem[256], esc[768], url[1200], tmp[512], dest[512];
+static bool download_cover(int tpl, const Game *g) {
+    char stem[256], esc[768], url[1200], dest[512];
     snprintf(stem, sizeof(stem), "%s", base_name(g->path));
     char *dot = strrchr(stem, '.');
     if (dot) *dot = 0;
@@ -161,36 +189,30 @@ static bool download_cover(CURL *curl, const Game *g) {
     esc[o] = 0;
     snprintf(url, sizeof(url), "https://raw.githubusercontent.com/libretro-thumbnails/%s/master/Named_Boxarts/%s.png", thumb_repo(g), esc);
     cover_path(g, dest, sizeof(dest));
-    snprintf(tmp, sizeof(tmp), "%s.part", dest);
-    FILE *f = fopen(tmp, "wb");
-    if (!f) return false;
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, f);
-    CURLcode rc = curl_easy_perform(curl);
-    long http = 0;
-    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http);
-    fclose(f);
-    if (rc != CURLE_OK || http != 200) { sceIoRemove(tmp); return false; }
-    sceIoRemove(dest);
-    return sceIoRename(tmp, dest) >= 0;
+    return http_download(tpl, url, dest);
 }
 
 static void download_covers(void) {
-    sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-    static char net_mem[1 * 1024 * 1024];
-    SceNetInitParam np = {net_mem, sizeof(net_mem), 0};
-    sceNetInit(&np);
-    sceNetCtlInit();
-    curl_global_init(CURL_GLOBAL_ALL);
-    CURL *curl = curl_easy_init();
-    if (!curl) { toast(T("No se pudo iniciar la red", "Could not start networking")); return; }
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 20L);
-    /* ponytail: la Vita no trae un almacén de CA para curl; solo se bajan imágenes públicas */
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "DeltaVita");
+    static bool net_ready;
+    if (!net_ready) {
+        sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
+        static char net_mem[1024 * 1024];
+        SceNetInitParam np = {net_mem, sizeof(net_mem), 0};
+        sceNetInit(&np);
+        sceNetCtlInit();
+        sceSysmoduleLoadModule(SCE_SYSMODULE_HTTPS);
+        logf_("sceSslInit 0x%08X sceHttpInit 0x%08X\n", sceSslInit(300 * 1024), sceHttpInit(1024 * 1024));
+        net_ready = true;
+    }
+    int state = 0;
+    sceNetCtlInetGetState(&state);
+    if (state != 3) { toast(T("Conecta la Vita a una red Wi-Fi", "Connect the Vita to Wi-Fi")); return; }
+    int tpl = sceHttpCreateTemplate("DeltaVita", SCE_HTTP_VERSION_1_1, SCE_TRUE);
+    if (tpl < 0) { logf_("sceHttpCreateTemplate 0x%08X\n", tpl); toast(T("No se pudo iniciar la red", "Could not start networking")); return; }
+    /* ponytail: los certificados raíz del firmware son viejos para GitHub; solo se bajan imágenes públicas */
+    sceHttpsDisableOption(SCE_HTTPS_FLAG_SERVER_VERIFY);
+    sceHttpSetConnectTimeOut(tpl, 10 * 1000 * 1000);
+    sceHttpSetRecvTimeOut(tpl, 20 * 1000 * 1000);
     mkdirs(DATA_DIR "/covers");
     int got = 0, missing = 0, todo = 0;
     for (int i = 0; i < g_ngames; i++) { char p[512]; cover_path(&g_games[i], p, sizeof(p)); if (!file_exists(p)) todo++; }
@@ -207,9 +229,9 @@ static void download_covers(void) {
         ui_round_rect(ui_w() * 0.2f, ui_h() / 2.0f + 50, ui_w() * 0.6f, 8, 4, COL_SURFACE);
         ui_round_rect(ui_w() * 0.2f, ui_h() / 2.0f + 50, ui_w() * 0.6f * done / (todo ? todo : 1), 8, 4, SYSTEMS[g_games[i].sys].color);
         ui_end();
-        if (download_cover(curl, &g_games[i])) got++; else missing++;
+        if (download_cover(tpl, &g_games[i])) got++; else missing++;
     }
-    curl_easy_cleanup(curl);
+    sceHttpDeleteTemplate(tpl);
     free_covers();
     char msg[160];
     snprintf(msg, sizeof(msg), T("Carátulas: %d nuevas, %d no encontradas", "Box art: %d new, %d not found"), got, missing);
