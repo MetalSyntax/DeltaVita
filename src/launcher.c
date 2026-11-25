@@ -2,7 +2,7 @@
  * @file launcher.c
  * @brief eboot.bin: biblioteca estilo Delta (una página por consola, carátulas), ajustes y descarga de carátulas.
  *
- * Al elegir un juego escribe ux0:data/DeltaVita/launch.txt y hace LoadExec del núcleo (app0:cores/<núcleo>.bin).
+ * Al elegir un juego escribe ux0:data/DeltaVita/launch.txt y hace LoadExec del núcleo (app0:/<núcleo>_libretro.self).
  */
 #include <curl/curl.h>
 #include <stdio.h>
@@ -263,7 +263,8 @@ static bool ime_input(const char *title, const char *initial, char *out, size_t 
 
 static void launch(const Game *g) {
     char core[160];
-    snprintf(core, sizeof(core), "app0:cores/%s.bin", SYSTEMS[g->sys].core);
+    /* misma disposición que RetroArch: "app0:cores/x.bin" da SCE_APPMGR_ERROR_INVALID_SELF_PATH */
+    snprintf(core, sizeof(core), "app0:/%s_libretro.self", SYSTEMS[g->sys].core);
     if (!file_exists(core)) { toast(T("Este VPK no incluye el núcleo de esa consola", "This VPK does not include that console's core")); return; }
     FILE *f = fopen(DATA_DIR "/launch.txt", "w");
     if (!f) { toast(T("No se pudo escribir en ux0:data", "Could not write to ux0:data")); return; }

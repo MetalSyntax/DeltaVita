@@ -45,7 +45,7 @@ foreach(lib ${CORE_LIBS})
   target_link_libraries(core_${core} frontend ${lib} retrocommon stdc++ ${SCE_LIBS} crypto)
   set_target_properties(core_${core} PROPERTIES LINKER_LANGUAGE CXX)
   vita_create_self(${core}.bin core_${core} UNSAFE)
-  list(APPEND VPK_FILES FILE ${CMAKE_BINARY_DIR}/${core}.bin cores/${core}.bin)
+  list(APPEND VPK_FILES FILE ${CMAKE_BINARY_DIR}/${core}.bin ${core}_libretro.self)
 endforeach()
 
 # skins convertidas a PNG (tools/fetch_assets.sh); no se versionan

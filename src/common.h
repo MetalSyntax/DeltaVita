@@ -1,6 +1,6 @@
 /**
  * @file common.h
- * @brief Tipos y utilidades compartidos por el lanzador (eboot) y los ejecutores de núcleo (app0:cores/<núcleo>.bin).
+ * @brief Tipos y utilidades compartidos por el lanzador (eboot) y los ejecutores de núcleo (app0:/<núcleo>_libretro.self).
  */
 #pragma once
 #include <stdbool.h>

@@ -1,6 +1,6 @@
 /**
  * @file runner.c
- * @brief Ejecutor de un núcleo libretro (se enlaza una vez por núcleo -> app0:cores/<núcleo>.bin).
+ * @brief Ejecutor de un núcleo libretro (se enlaza una vez por núcleo -> app0:/<núcleo>_libretro.self).
  *
  * El lanzador escribe ux0:data/DeltaVita/launch.txt (ruta de la ROM y título) y hace LoadExec de este
  * binario; al salir se vuelve al lanzador con otro LoadExec.
@@ -811,7 +811,7 @@ static bool read_launch(void) {
 }
 
 static void back_to_launcher(void) {
-    sceAppMgrLoadExec("app0:eboot.bin", NULL, NULL);
+    sceAppMgrLoadExec("app0:/eboot.bin", NULL, NULL);
     sceKernelExitProcess(0);
 }
 
