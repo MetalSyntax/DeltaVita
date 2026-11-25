@@ -271,8 +271,12 @@ static void launch(const Game *g) {
     fclose(f);
     g_config.last_system = g->sys;
     config_save();
-    vita2d_fini();
-    sceAppMgrLoadExec(core, NULL, NULL);
+    /* LoadExec no termina el proceso en el acto: hay que salir aquí, sin volver a dibujar */
+    int rc = sceAppMgrLoadExec(core, NULL, NULL);
+    logf_("LoadExec %s -> 0x%08X\n", core, rc);
+    if (rc < 0) { toast(T("No se pudo abrir el núcleo", "Could not start the core")); return; }
+    vita2d_wait_rendering_done();
+    sceKernelExitProcess(0);
 }
 
 /* ---------- pantallas ---------- */

@@ -6,3 +6,4 @@ cores/lib/
 .DS_Store
 assets/skins/
 *.log
+logs/
