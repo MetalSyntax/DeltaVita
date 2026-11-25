@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="extras/livearea/pic0.png" alt="DeltaVita PS Vita Banner" width="700"><br>
+  <img src="sce_sys/livearea/contents/bg.png" alt="DeltaVita PS Vita Banner" width="700"><br>
   DeltaVita · PS Vita Port
 </h1>
 
@@ -11,6 +11,11 @@
   <a href="#build-instructions-for-developers">How to compile</a> •
   <a href="#credits--acknowledgments">Credits</a>
 </p>
+
+> [!IMPORTANT]
+> **Unofficial port.** DeltaVita is a fan-made, unofficial port inspired by Delta. It is **not affiliated with, endorsed, sponsored or supported by Riley Testut, AltStore LLC or the Delta project**. "Delta" and the Delta logo belong to their respective owners. Please do not report DeltaVita issues to the Delta project. No games, BIOS files or Delta skins are distributed with DeltaVita.
+>
+> **Port no oficial.** DeltaVita es un port no oficial hecho por fans, sin relación ni respaldo de Riley Testut, AltStore LLC ni del proyecto Delta.
 
 An unofficial, native **PS Vita take on [Delta](https://github.com/rileytestut/Delta)**, Riley Testut's multi-system iOS emulator. DeltaVita is not affiliated with Delta or Riley Testut. It is a native launcher (vita2d) plus one libretro core per console, each statically linked into its own app and started with `sceAppMgrLoadExec`. Its sister project is [DeltaDroid](https://github.com/MetalSyntax/DeltaDroid) (Android).
 
