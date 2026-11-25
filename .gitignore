@@ -1,0 +1,8 @@
+build/
+cores/src/
+cores/lib/
+*.vpk
+._*
+.DS_Store
+assets/skins/
+*.log
