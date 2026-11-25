@@ -14,8 +14,17 @@
 #include <psp2/io/dirent.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/kernel/processmgr.h>
-#include <psp2/libssl.h>
-#include <psp2/net/http.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <openssl/err.h>
+#include <openssl/rand.h>
+#include <openssl/ssl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <psp2/kernel/rng.h>
 #include <psp2/net/net.h>
 #include <psp2/net/netctl.h>
 #include <psp2/sysmodule.h>
@@ -145,36 +154,78 @@ static const char *thumb_repo(const Game *g) {
     }
 }
 
-/** Descarga url a dest con el cliente HTTP del sistema. curl de vitasdk no conecta (falla el connect()). */
-static bool http_download(int tpl, const char *url, const char *dest) {
-    char tmp[512];
-    snprintf(tmp, sizeof(tmp), "%s.part", dest);
-    int conn = sceHttpCreateConnectionWithURL(tpl, url, SCE_TRUE);
-    int req = conn >= 0 ? sceHttpCreateRequestWithURL(conn, SCE_HTTP_METHOD_GET, url, 0) : -1;
-    int rc = req >= 0 ? sceHttpSendRequest(req, NULL, 0) : req;
-    int status = 0;
-    if (rc >= 0) sceHttpGetStatusCode(req, &status);
-    bool ok = false;
-    if (status == 200) {
-        FILE *f = fopen(tmp, "wb");
-        if (f) {
-            static char buf[16 * 1024];
-            int n;
-            ok = true;
-            while ((n = sceHttpReadData(req, buf, sizeof(buf))) > 0) ok = ok && fwrite(buf, 1, n, f) == (size_t)n;
-            ok = ok && n == 0;
-            fclose(f);
-        }
+/**
+ * GET HTTPS mínimo con OpenSSL sobre un socket bloqueante. El TLS del firmware (sceHttp) no negocia con
+ * GitHub (SCE_HTTP_ERROR_SSL) y el connect() no bloqueante de curl falla en la Vita.
+ */
+static bool https_download(const char *host, const char *path, const char *dest) {
+    static SSL_CTX *ctx;
+    if (!ctx) {
+        unsigned char seed[64];
+        sceKernelGetRandomNumber(seed, sizeof(seed));
+        RAND_seed(seed, sizeof(seed));
+        SSL_library_init();
+        SSL_load_error_strings();
+        ctx = SSL_CTX_new(SSLv23_client_method());
+        if (!ctx) return false;
+        SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+        /* ponytail: sin almacén de CA en la Vita; solo se bajan imágenes públicas */
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
     }
-    logf_("carátula %s -> 0x%08X http %d %s\n", url, rc, status, ok ? "ok" : "");
-    if (req >= 0) sceHttpDeleteRequest(req);
-    if (conn >= 0) sceHttpDeleteConnection(conn);
-    if (!ok) { sceIoRemove(tmp); return false; }
-    sceIoRemove(dest);
-    return sceIoRename(tmp, dest) >= 0;
+    struct hostent *he = gethostbyname(host);
+    if (!he || he->h_addrtype != AF_INET) { logf_("DNS %s falló\n", host); return false; }
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) { logf_("socket %d\n", errno); return false; }
+    struct timeval tv = {15, 0};
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    struct sockaddr_in a = {0};
+    a.sin_family = AF_INET;
+    a.sin_port = htons(443);
+    memcpy(&a.sin_addr, he->h_addr_list[0], 4);
+    bool ok = false;
+    char *buf = NULL;
+    SSL *ssl = NULL;
+    if (connect(fd, (struct sockaddr *)&a, sizeof(a)) < 0) { logf_("connect %d\n", errno); goto out; }
+    ssl = SSL_new(ctx);
+    SSL_set_fd(ssl, fd);
+    SSL_set_tlsext_host_name(ssl, host);
+    if (SSL_connect(ssl) != 1) { logf_("TLS: %s\n", ERR_error_string(ERR_get_error(), NULL)); goto out; }
+    char req[1400];
+    /* HTTP/1.0: respuesta sin "chunked" y cierre al terminar */
+    int rl = snprintf(req, sizeof(req), "GET %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: DeltaVita\r\nConnection: close\r\n\r\n", path, host);
+    if (SSL_write(ssl, req, rl) != rl) goto out;
+    size_t cap = 256 * 1024, len = 0;
+    buf = malloc(cap);
+    for (;;) {
+        if (len + 16384 > cap) {
+            if (cap >= 8 * 1024 * 1024) goto out; /* una carátula nunca pesa tanto */
+            char *nb = realloc(buf, cap *= 2);
+            if (!nb) goto out;
+            buf = nb;
+        }
+        int n = SSL_read(ssl, buf + len, 16384);
+        if (n <= 0) break;
+        len += n;
+    }
+    int status = 0;
+    if (len > 12) sscanf(buf, "HTTP/%*s %d", &status);
+    char *body = NULL;
+    for (size_t k = 0; k + 3 < len; k++) if (!memcmp(buf + k, "\r\n\r\n", 4)) { body = buf + k + 4; break; }
+    logf_("carátula %s -> http %d, %u bytes\n", path, status, (unsigned)len);
+    if (status == 200 && body) {
+        char tmp[512];
+        snprintf(tmp, sizeof(tmp), "%s.part", dest);
+        ok = write_file(tmp, body, len - (body - buf)) && (sceIoRemove(dest), sceIoRename(tmp, dest) >= 0);
+    }
+out:
+    if (ssl) { SSL_shutdown(ssl); SSL_free(ssl); }
+    close(fd);
+    free(buf);
+    return ok;
 }
 
-static bool download_cover(int tpl, const Game *g) {
+static bool download_cover(const Game *g) {
     char stem[256], esc[768], url[1200], dest[512];
     snprintf(stem, sizeof(stem), "%s", base_name(g->path));
     char *dot = strrchr(stem, '.');
@@ -187,9 +238,9 @@ static bool download_cover(int tpl, const Game *g) {
         else o += snprintf(esc + o, sizeof(esc) - o, "%%%02X", c);
     }
     esc[o] = 0;
-    snprintf(url, sizeof(url), "https://raw.githubusercontent.com/libretro-thumbnails/%s/master/Named_Boxarts/%s.png", thumb_repo(g), esc);
+    snprintf(url, sizeof(url), "/libretro-thumbnails/%s/master/Named_Boxarts/%s.png", thumb_repo(g), esc);
     cover_path(g, dest, sizeof(dest));
-    return http_download(tpl, url, dest);
+    return https_download("raw.githubusercontent.com", url, dest);
 }
 
 static void download_covers(void) {
@@ -200,19 +251,11 @@ static void download_covers(void) {
         SceNetInitParam np = {net_mem, sizeof(net_mem), 0};
         sceNetInit(&np);
         sceNetCtlInit();
-        sceSysmoduleLoadModule(SCE_SYSMODULE_HTTPS);
-        logf_("sceSslInit 0x%08X sceHttpInit 0x%08X\n", sceSslInit(300 * 1024), sceHttpInit(1024 * 1024));
         net_ready = true;
     }
     int state = 0;
     sceNetCtlInetGetState(&state);
     if (state != 3) { toast(T("Conecta la Vita a una red Wi-Fi", "Connect the Vita to Wi-Fi")); return; }
-    int tpl = sceHttpCreateTemplate("DeltaVita", SCE_HTTP_VERSION_1_1, SCE_TRUE);
-    if (tpl < 0) { logf_("sceHttpCreateTemplate 0x%08X\n", tpl); toast(T("No se pudo iniciar la red", "Could not start networking")); return; }
-    /* ponytail: los certificados raíz del firmware son viejos para GitHub; solo se bajan imágenes públicas */
-    sceHttpsDisableOption(SCE_HTTPS_FLAG_SERVER_VERIFY);
-    sceHttpSetConnectTimeOut(tpl, 10 * 1000 * 1000);
-    sceHttpSetRecvTimeOut(tpl, 20 * 1000 * 1000);
     mkdirs(DATA_DIR "/covers");
     int got = 0, missing = 0, todo = 0;
     for (int i = 0; i < g_ngames; i++) { char p[512]; cover_path(&g_games[i], p, sizeof(p)); if (!file_exists(p)) todo++; }
@@ -229,9 +272,8 @@ static void download_covers(void) {
         ui_round_rect(ui_w() * 0.2f, ui_h() / 2.0f + 50, ui_w() * 0.6f, 8, 4, COL_SURFACE);
         ui_round_rect(ui_w() * 0.2f, ui_h() / 2.0f + 50, ui_w() * 0.6f * done / (todo ? todo : 1), 8, 4, SYSTEMS[g_games[i].sys].color);
         ui_end();
-        if (download_cover(tpl, &g_games[i])) got++; else missing++;
+        if (download_cover(&g_games[i])) got++; else missing++;
     }
-    sceHttpDeleteTemplate(tpl);
     free_covers();
     char msg[160];
     snprintf(msg, sizeof(msg), T("Carátulas: %d nuevas, %d no encontradas", "Box art: %d new, %d not found"), got, missing);

@@ -20,7 +20,7 @@ set(SCE_LIBS
   SceCtrl_stub SceTouch_stub SceAudio_stub ScePower_stub SceIme_stub SceRtc_stub SceLibKernel_stub pthread)
 
 add_executable(launcher src/launcher.c)
-target_link_libraries(launcher frontend ${SCE_LIBS} crypto SceNet_stub SceNetCtl_stub SceHttp_stub SceSsl_stub)
+target_link_libraries(launcher frontend ssl crypto ${SCE_LIBS} crypto SceNet_stub SceNetCtl_stub)
 vita_create_self(eboot.bin launcher UNSAFE)
 
 # libretro-common: los núcleos compilados con STATIC_LINKING esperan que el frontend lo aporte
