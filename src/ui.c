@@ -10,7 +10,7 @@ static bool g_portrait;
 static float g_font_px = 20;   /* alto en px de la fuente a escala 1, medido en ui_init */
 
 void ui_init(void) {
-    vita2d_init();
+    vita2d_init_advanced(4 * 1024 * 1024); /* vértices de menús con muchos círculos + modo vertical */
     vita2d_set_clear_color(COL_BG);
     vita2d_set_vblank_wait(1);
     g_font = vita2d_load_default_pvf();
@@ -20,6 +20,9 @@ void ui_init(void) {
 
 void ui_begin(bool portrait) {
     g_portrait = portrait;
+    /* en vertical hay dos escenas por fotograma y el bloque temporal no se vaciaba: se desbordaba.
+       ui_end() espera a la GPU, así que aquí ya se puede reutilizar entero */
+    vita2d_pool_reset();
     if (portrait && !g_rt)
         g_rt = vita2d_create_empty_texture_rendertarget(SCREEN_H, SCREEN_W, SCE_GXM_TEXTURE_FORMAT_A8B8G8R8);
     if (portrait && g_rt) {
