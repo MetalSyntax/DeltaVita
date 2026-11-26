@@ -10,7 +10,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HELV = "/System/Library/Fonts/Helvetica.ttc"
-TOP, BOT = (64, 36, 170), (16, 58, 150)   # violeta -> azul, más oscuros que el ícono para que este resalte
+TOP, BOT = (78, 34, 168), (40, 14, 112)   # violeta Delta, más oscuro que el ícono para que este resalte
 
 
 def font(px, bold):
